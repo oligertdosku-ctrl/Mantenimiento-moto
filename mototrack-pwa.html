@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#c8601a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MotoTrack" />
+  <meta name="description" content="Motorcycle maintenance tracker with AI advisor" />
+  <title>MotoTrack</title>
+
+  <!-- Inline Manifest via JS blob -->
+  <script>
+    const manifest = {
+      name: "MotoTrack",
+      short_name: "MotoTrack",
+      description: "Motorcycle maintenance tracker with AI advisor",
+      start_url: "./",
+      display: "standalone",
+      background_color: "#0a0a0a",
+      theme_color: "#c8601a",
+      orientation: "portrait",
+      icons: [
+        { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%230a0a0a'/%3E%3Ccircle cx='96' cy='96' r='70' fill='none' stroke='%23c8601a' stroke-width='8'/%3E%3Ctext x='96' y='115' font-size='72' text-anchor='middle' fill='%23c8601a' font-family='monospace'%3E◈%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+        { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230a0a0a'/%3E%3Ccircle cx='256' cy='256' r='200' fill='none' stroke='%23c8601a' stroke-width='20'/%3E%3Ctext x='256' y='310' font-size='200' text-anchor='middle' fill='%23c8601a' font-family='monospace'%3E◈%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    const manifestURL = URL.createObjectURL(blob);
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = manifestURL;
+    document.head.appendChild(link);
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;700;900&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface2: #161616;
+      --border: #222222;
+      --border2: #1a1a1a;
+      --accent: #c8601a;
+      --accent-dim: #c8601a33;
+      --text: #f0ebe0;
+      --text-muted: #666666;
+      --text-dim: #444444;
+      --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+      --font-display: 'Barlow Condensed', sans-serif;
+      --tab-h: 56px;
+      --header-h: 64px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      height: var(--header-h);
+      background: linear-gradient(135deg, #140800 0%, #0a0a0a 100%);
+      border-bottom: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    .logo { font-family: var(--font-display); font-size: 26px; font-weight: 900; color: var(--accent); letter-spacing: 4px; }
+    .bike-info { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; margin-top: 1px; }
+
+    #setup-btn {
+      background: transparent;
+      border: 1px solid var(--accent-dim);
+      color: var(--accent);
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    /* ── TABS ── */
+    #tabs {
+      display: flex;
+      background: #0d0d0d;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      flex: 1;
+      min-width: 60px;
+      padding: 12px 8px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.2s;
+      text-align: center;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+    /* ── CONTENT ── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px;
+      padding-bottom: calc(16px + var(--safe-bottom));
+    }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-label {
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    /* ── STAT ROW ── */
+    .stat-row {
+      display: flex;
+      background: #0d0d0d;
+      border: 1px solid var(--border2);
+      padding: 16px 8px;
+      margin-bottom: 14px;
+      gap: 4px;
+    }
+    .stat { flex: 1; text-align: center; }
+    .stat-value { font-family: var(--font-display); font-size: 30px; font-weight: 900; color: var(--text); }
+    .stat-value.accent { color: var(--accent); }
+    .stat-label { font-size: 9px; color: var(--text-dim); letter-spacing: 2px; margin-top: 2px; }
+
+    /* ── FORM ── */
+    .form-field { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-field { flex: 1; }
+
+    input, select, textarea {
+      width: 100%;
+      background: #0d0d0d;
+      border: 1px solid #2a2a2a;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: var(--font-mono);
+      outline: none;
+      border-radius: 2px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent-dim); }
+    textarea { resize: vertical; min-height: 70px; }
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: 11px 20px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #333;
+      color: #666;
+      padding: 11px 20px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+    .btn-add {
+      background: transparent;
+      border: 1px solid var(--accent-dim);
+      color: var(--accent);
+      padding: 7px 14px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 8px; }
+
+    /* ── LIST ITEMS ── */
+    .list-item {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .list-item-main { flex: 1; min-width: 0; }
+    .list-item-title { font-size: 14px; color: var(--text); font-weight: 600; }
+    .list-item-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .list-item-note { font-size: 12px; color: #888; margin-top: 6px; font-style: italic; }
+
+    /* ── BADGE ── */
+    .badge {
+      background: #1a0a00;
+      color: var(--accent);
+      font-size: 9px;
+      padding: 3px 8px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border-radius: 2px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── REMINDER TOGGLE ── */
+    .check-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #444;
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      margin-top: 1px;
+      transition: all 0.2s;
+    }
+    .check-btn.done { background: var(--accent); border-color: var(--accent); }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      color: var(--text-dim);
+      font-size: 13px;
+      text-align: center;
+      padding: 32px 0;
+      letter-spacing: 1px;
+    }
+
+    /* ── SECTION HEADER ── */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    /* ── TOTAL BOX ── */
+    .total-box {
+      background: #0f0a05;
+      border: 1px solid var(--accent-dim);
+      padding: 16px 20px;
+      margin-bottom: 14px;
+    }
+    .total-box-label { font-size: 9px; color: #666; letter-spacing: 2px; text-transform: uppercase; }
+    .total-box-value { font-family: var(--font-display); font-size: 36px; font-weight: 900; color: var(--accent); margin-top: 4px; }
+    .total-box-cats { display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+    .total-cat { font-size: 10px; color: #555; }
+    .total-cat span { color: #888; }
+
+    /* ── AI CHAT ── */
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 12px;
+    }
+
+    .msg {
+      max-width: 88%;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      border-radius: 2px;
+    }
+    .msg.user { align-self: flex-end; background: #1a0a00; border: 1px solid #c8601a55; }
+    .msg.ai { align-self: flex-start; background: var(--surface); border: 1px solid var(--border2); }
+    .msg-tag { font-size: 9px; color: var(--accent); letter-spacing: 2px; margin-bottom: 6px; }
+
+    .chat-input-row {
+      display: flex;
+      gap: 10px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border2);
+      flex-shrink: 0;
+    }
+    .chat-input-row input { flex: 1; }
+    .send-btn {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: 0 18px;
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .send-btn:disabled { opacity: 0.4; }
+
+    /* ── MODAL ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #modal-overlay.show { display: flex; }
+    #modal {
+      background: var(--surface);
+      border: 2px solid var(--accent);
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 2px;
+    }
+    .modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 900; letter-spacing: 3px; color: var(--accent); margin-bottom: 6px; }
+    .modal-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 20px; }
+
+    /* ── DONE SECTION ── */
+    .done-label { font-size: 9px; color: var(--text-dim); letter-spacing: 2px; margin: 12px 0 8px; }
+
+    /* ── INSTALL BANNER ── */
+    #install-banner {
+      display: none;
+      background: #1a0a00;
+      border-bottom: 1px solid var(--accent);
+      padding: 10px 16px;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    #install-banner.show { display: flex; }
+    .install-text { font-size: 11px; color: var(--text); letter-spacing: 1px; }
+    .install-btns { display: flex; gap: 8px; flex-shrink: 0; }
+    .install-yes { background: var(--accent); border: none; color: #fff; padding: 6px 14px; font-size: 11px; font-family: var(--font-mono); cursor: pointer; border-radius: 2px; }
+    .install-no { background: none; border: none; color: var(--text-dim); font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Install Banner -->
+  <div id="install-banner">
+    <div class="install-text">📲 Install MotoTrack on your home screen</div>
+    <div class="install-btns">
+      <button class="install-yes" id="install-btn">Install</button>
+      <button class="install-no" id="dismiss-install">✕</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div id="header">
+    <div>
+      <div class="logo">◈ MOTOTRACK</div>
+      <div class="bike-info" id="bike-info">Tap Setup to begin</div>
+    </div>
+    <button id="setup-btn" class="btn-add">Setup</button>
+  </div>
+
+  <!-- Tabs -->
+  <div id="tabs">
+    <button class="tab active" data-tab="dashboard"><span class="tab-icon">⊞</span>Dash</button>
+    <button class="tab" data-tab="services"><span class="tab-icon">🔧</span>Services</button>
+    <button class="tab" data-tab="reminders"><span class="tab-icon">⏰</span>Remind</button>
+    <button class="tab" data-tab="expenses"><span class="tab-icon">💰</span>Expenses</button>
+    <button class="tab" data-tab="ai"><span class="tab-icon">◈</span>AI</button>
+  </div>
+
+  <!-- Content -->
+  <div id="content"></div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay">
+  <div id="modal"></div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+const STORAGE_KEY = 'mototrack_v2';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const d = raw ? JSON.parse(raw) : {};
+    return {
+      bike: d.bike || { make: '', model: '', year: '', mileage: '' },
+      services: d.services || [],
+      reminders: d.reminders || [],
+      expenses: d.expenses || [],
+    };
+  } catch { return { bike: { make:'',model:'',year:'',mileage:'' }, services:[], reminders:[], expenses:[] }; }
+}
+
+let state = loadData();
+let activeTab = 'dashboard';
+let chatHistory = [];
+
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function today() { return new Date().toISOString().split('T')[0]; }
+
+const SERVICE_TYPES = ['Oil Change','Oil Filter','Air Filter','Spark Plugs','Chain Lubrication','Chain Adjustment','Tire Check','Brake Inspection','Brake Fluid','Coolant','Full Service','Other'];
+const EXPENSE_CATS = ['Service','Parts','Fuel','Insurance','Gear','Other'];
+
+// ─── ROUTER ──────────────────────────────────────────────
+function render() {
+  updateBikeInfo();
+  const content = document.getElementById('content');
+  if (activeTab === 'dashboard') content.innerHTML = renderDashboard();
+  else if (activeTab === 'services') { content.innerHTML = renderServices(); bindServices(); }
+  else if (activeTab === 'reminders') { content.innerHTML = renderReminders(); bindReminders(); }
+  else if (activeTab === 'expenses') { content.innerHTML = renderExpenses(); bindExpenses(); }
+  else if (activeTab === 'ai') { content.style.display='flex'; content.style.flexDirection='column'; content.style.height='100%'; content.style.padding='16px'; content.style.paddingBottom='calc(16px + env(safe-area-inset-bottom,0px))'; renderAI(); return; }
+  if (activeTab !== 'ai') { content.style.display=''; content.style.flexDirection=''; content.style.height=''; }
+}
+
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  render();
+}
+
+function updateBikeInfo() {
+  const b = state.bike;
+  document.getElementById('bike-info').textContent = b.make
+    ? `${b.year} ${b.make} ${b.model}${b.mileage ? ' · '+Number(b.mileage).toLocaleString()+' km':''}`
+    : 'Tap Setup to begin';
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────
+function renderDashboard() {
+  const totalSpent = state.expenses.reduce((s,e) => s+Number(e.amount||0), 0);
+  const pendingCount = state.reminders.filter(r=>!r.done).length;
+  const lastService = state.services[0];
+  const upcoming = state.reminders.filter(r=>!r.done).slice(0,3);
+
+  let html = `
+    <div class="section-title">Dashboard</div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-value">${state.services.length}</div><div class="stat-label">Services</div></div>
+      <div class="stat"><div class="stat-value accent">${pendingCount}</div><div class="stat-label">Reminders</div></div>
+      <div class="stat"><div class="stat-value">$${totalSpent.toFixed(0)}</div><div class="stat-label">Spent</div></div>
+    </div>`;
+
+  if (lastService) {
+    html += `<div class="card">
+      <div class="card-label">Last Service</div>
+      <div class="list-item-title">${lastService.type}</div>
+      <div class="list-item-sub">${lastService.date}${lastService.mileage?' · '+Number(lastService.mileage).toLocaleString()+' km':''}</div>
+      ${lastService.notes?`<div class="list-item-note">${lastService.notes}</div>`:''}
+    </div>`;
+  }
+
+  if (upcoming.length > 0) {
+    html += `<div class="card"><div class="card-label">Upcoming Reminders</div>`;
+    upcoming.forEach(r => {
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a1a1a;">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></div>
+        <div>
+          <div style="font-size:13px">${r.title}</div>
+          ${r.dueDate?`<div style="font-size:11px;color:var(--text-muted)">${r.dueDate}</div>`:''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (!state.bike.make) {
+    html += `<div class="card"><div class="card-label">Get Started</div>
+      <div style="color:var(--text-muted);font-size:13px;line-height:1.7">Set up your bike details to begin tracking maintenance, get AI recommendations, and never miss a service.</div>
+    </div>`;
+  }
+
+  html += `<div class="card"><div class="card-label">Quick Add</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn-add" onclick="setTab('services')">+ Service</button>
+      <button class="btn-add" onclick="setTab('reminders')">+ Reminder</button>
+      <button class="btn-add" onclick="setTab('expenses')">+ Expense</button>
+    </div>
+  </div>`;
+
+  return html;
+}
+
+// ─── SERVICES ────────────────────────────────────────────
+function renderServices() {
+  let html = `<div class="section-header">
+    <div class="section-title" style="margin-bottom:0">Services</div>
+    <button class="btn-add" id="show-service-form">+ Add</button>
+  </div>
+  <div id="service-form" style="display:none">
+    <div class="card">
+      <div class="card-label">New Service</div>
+      <div class="form-field">
+        <label class="form-label">Service Type</label>
+        <select id="svc-type"><option value="">Select type...</option>${SERVICE_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Date</label><input type="date" id="svc-date" value="${today()}" /></div>
+        <div class="form-field"><label class="form-label">Mileage (km)</label><input type="number" id="svc-mileage" placeholder="0" /></div>
+      </div>
+      <div class="form-field"><label class="form-label">Cost ($)</label><input type="number" id="svc-cost" placeholder="0.00" /></div>
+      <div class="form-field"><label class="form-label">Notes</label><textarea id="svc-notes" placeholder="Parts used, observations..."></textarea></div>
+      <div class="btn-row">
+        <button class="btn-primary" id="save-service">Save</button>
+        <button class="btn-secondary" id="cancel-service">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+
+  if (state.services.length === 0) {
+    html += `<div class="empty">No services logged yet.<br>Add your first one above!</div>`;
+  } else {
+    state.services.forEach(s => {
+      html += `<div class="list-item">
+        <div class="list-item-main">
+          <div class="list-item-title">${s.type}</div>
+          <div class="list-item-sub">${s.date}${s.mileage?' · '+Number(s.mileage).toLocaleString()+' km':''}${s.cost?' · $'+s.cost:''}</div>
+          ${s.notes?`<div class="list-item-note">${s.notes}</div>`:''}
+        </div>
+        <button class="btn-icon" onclick="deleteService(${s.id})">✕</button>
+      </div>`;
+    });
+  }
+  return html;
+}
+
+function bindServices() {
+  document.getElementById('show-service-form').onclick = () => {
+    const f = document.getElementById('service-form');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  };
+  document.getElementById('cancel-service').onclick = () => { document.getElementById('service-form').style.display='none'; };
+  document.getElementById('save-service').onclick = () => {
+    const type = document.getElementById('svc-type').value;
+    const date = document.getElementById('svc-date').value;
+    if (!type || !date) { alert('Please select a service type and date.'); return; }
+    state.services.unshift({ id: Date.now(), type, date, mileage: document.getElementById('svc-mileage').value, cost: document.getElementById('svc-cost').value, notes: document.getElementById('svc-notes').value });
+    save(); render();
+  };
+}
+
+function deleteService(id) {
+  if (!confirm('Delete this service record?')) return;
+  state.services = state.services.filter(s => s.id !== id);
+  save(); render();
+}
+
+// ─── REMINDERS ───────────────────────────────────────────
+function renderReminders() {
+  const pending = state.reminders.filter(r=>!r.done);
+  const done = state.reminders.filter(r=>r.done);
+
+  let html = `<div class="section-header">
+    <div class="section-title" style="margin-bottom:0">Reminders</div>
+    <button class="btn-add" id="show-reminder-form">+ Add</button>
+  </div>
+  <div id="reminder-form" style="display:none">
+    <div class="card">
+      <div class="card-label">New Reminder</div>
+      <div class="form-field"><label class="form-label">What needs to be done?</label><input type="text" id="rem-title" placeholder="e.g. Change oil filter" /></div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Due Date</label><input type="date" id="rem-date" /></div>
+        <div class="form-field"><label class="form-label">Due Mileage (km)</label><input type="number" id="rem-mileage" placeholder="0" /></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="save-reminder">Save</button>
+        <button class="btn-secondary" id="cancel-reminder">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+
+  if (state.reminders.length === 0) {
+    html += `<div class="empty">No reminders yet.<br>Stay on top of your maintenance!</div>`;
+  }
+
+  pending.forEach(r => { html += reminderRow(r); });
+  if (done.length > 0) {
+    html += `<div class="done-label">COMPLETED</div>`;
+    done.forEach(r => { html += reminderRow(r); });
+  }
+  return html;
+}
+
+function reminderRow(r) {
+  return `<div class="list-item" style="${r.done?'opacity:0.45':''}">
+    <button class="check-btn ${r.done?'done':''}" onclick="toggleReminder(${r.id})">${r.done?'✓':''}</button>
+    <div class="list-item-main">
+      <div class="list-item-title" style="${r.done?'text-decoration:line-through;color:var(--text-muted)':''}">${r.title}</div>
+      <div class="list-item-sub">
+        ${r.dueDate?`By ${r.dueDate}`:''}${r.dueDate&&r.dueMileage?' · ':''}${r.dueMileage?Number(r.dueMileage).toLocaleString()+' km':''}
+      </div>
+    </div>
+    <button class="btn-icon" onclick="deleteReminder(${r.id})">✕</button>
+  </div>`;
+}
+
+function bindReminders() {
+  document.getElementById('show-reminder-form').onclick = () => {
+    const f = document.getElementById('reminder-form');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  };
+  document.getElementById('cancel-reminder').onclick = () => { document.getElementById('reminder-form').style.display='none'; };
+  document.getElementById('save-reminder').onclick = () => {
+    const title = document.getElementById('rem-title').value.trim();
+    if (!title) { alert('Please enter what needs to be done.'); return; }
+    state.reminders.unshift({ id: Date.now(), title, dueDate: document.getElementById('rem-date').value, dueMileage: document.getElementById('rem-mileage').value, done: false });
+    save(); render();
+  };
+}
+
+function toggleReminder(id) {
+  const r = state.reminders.find(r=>r.id===id);
+  if (r) { r.done = !r.done; save(); render(); }
+}
+
+function deleteReminder(id) {
+  if (!confirm('Delete this reminder?')) return;
+  state.reminders = state.reminders.filter(r=>r.id!==id);
+  save(); render();
+}
+
+// ─── EXPENSES ────────────────────────────────────────────
+function renderExpenses() {
+  const total = state.expenses.reduce((s,e)=>s+Number(e.amount||0),0);
+  const bycat = EXPENSE_CATS.map(cat=>({ cat, total: state.expenses.filter(e=>e.category===cat).reduce((s,e)=>s+Number(e.amount||0),0) })).filter(x=>x.total>0);
+
+  let html = `<div class="section-header">
+    <div class="section-title" style="margin-bottom:0">Expenses</div>
+    <button class="btn-add" id="show-expense-form">+ Add</button>
+  </div>`;
+
+  if (total > 0) {
+    html += `<div class="total-box">
+      <div class="total-box-label">Total Spent</div>
+      <div class="total-box-value">$${total.toFixed(2)}</div>
+      <div class="total-box-cats">${bycat.map(x=>`<div class="total-cat">${x.cat}: <span>$${x.total.toFixed(0)}</span></div>`).join('')}</div>
+    </div>`;
+  }
+
+  html += `<div id="expense-form" style="display:none">
+    <div class="card">
+      <div class="card-label">New Expense</div>
+      <div class="form-field"><label class="form-label">Description</label><input type="text" id="exp-desc" placeholder="e.g. Michelin tires" /></div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Amount ($)</label><input type="number" id="exp-amount" placeholder="0.00" /></div>
+        <div class="form-field"><label class="form-label">Date</label><input type="date" id="exp-date" value="${today()}" /></div>
+      </div>
+      <div class="form-field"><label class="form-label">Category</label><select id="exp-cat">${EXPENSE_CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="btn-row">
+        <button class="btn-primary" id="save-expense">Save</button>
+        <button class="btn-secondary" id="cancel-expense">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+
+  if (state.expenses.length === 0) {
+    html += `<div class="empty">No expenses recorded yet.</div>`;
+  } else {
+    state.expenses.forEach(e => {
+      html += `<div class="list-item">
+        <div class="list-item-main">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span class="badge">${e.category}</span>
+            <span class="list-item-title">${e.description}</span>
+          </div>
+          <div class="list-item-sub">${e.date}</div>
+        </div>
+        <div style="font-weight:700;color:var(--text);white-space:nowrap">$${Number(e.amount).toFixed(2)}</div>
+        <button class="btn-icon" onclick="deleteExpense(${e.id})">✕</button>
+      </div>`;
+    });
+  }
+  return html;
+}
+
+function bindExpenses() {
+  document.getElementById('show-expense-form').onclick = () => {
+    const f = document.getElementById('expense-form');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  };
+  document.getElementById('cancel-expense').onclick = () => { document.getElementById('expense-form').style.display='none'; };
+  document.getElementById('save-expense').onclick = () => {
+    const desc = document.getElementById('exp-desc').value.trim();
+    const amount = document.getElementById('exp-amount').value;
+    if (!desc || !amount) { alert('Please enter description and amount.'); return; }
+    state.expenses.unshift({ id: Date.now(), description: desc, amount, date: document.getElementById('exp-date').value, category: document.getElementById('exp-cat').value });
+    save(); render();
+  };
+}
+
+function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  state.expenses = state.expenses.filter(e=>e.id!==id);
+  save(); render();
+}
+
+// ─── AI ADVISOR ──────────────────────────────────────────
+function renderAI() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="section-title" style="flex-shrink:0">AI Advisor</div>
+    <div id="chat-messages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Ask about your bike..." />
+      <button class="send-btn" id="send-btn">→</button>
+    </div>`;
+
+  const msgsEl = document.getElementById('chat-messages');
+
+  if (chatHistory.length === 0) {
+    chatHistory.push({ role:'assistant', content:'Hello! I\'m your motorcycle maintenance AI advisor. Ask me anything about your bike\'s maintenance, what services are due, troubleshooting, or best practices for keeping your machine in top shape.' });
+  }
+
+  function renderMsgs() {
+    msgsEl.innerHTML = chatHistory.map(m => `
+      <div class="msg ${m.role==='user'?'user':'ai'}">
+        ${m.role==='assistant'?'<div class="msg-tag">◈ MOTOTRACK AI</div>':''}
+        ${m.content}
+      </div>`).join('');
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+  }
+
+  renderMsgs();
+
+  function buildSystem() {
+    const b = state.bike;
+    const bikeStr = b.make ? `The user rides a ${b.year} ${b.make} ${b.model}${b.mileage?' with '+Number(b.mileage).toLocaleString()+' km on the odometer':''}.` : 'The user has not set up their bike details yet.';
+    const recentSvcs = state.services.slice(0,5).map(s=>`- ${s.type} on ${s.date}${s.mileage?' at '+s.mileage+'km':''}${s.notes?': '+s.notes:''}`).join('\n');
+    const pendingRem = state.reminders.filter(r=>!r.done).map(r=>`- ${r.title}${r.dueDate?' (due '+r.dueDate+')':''}`).join('\n');
+    return `You are an expert motorcycle mechanic and maintenance advisor. Be concise, practical, and specific.\n\n${bikeStr}\n\nRecent service history:\n${recentSvcs||'No services logged yet.'}\n\nPending reminders:\n${pendingRem||'No pending reminders.'}\n\nGive specific, actionable advice. Reference the bike's actual history when relevant. Keep answers focused and practical.`;
+  }
+
+  async function sendMsg() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    const sendBtn = document.getElementById('send-btn');
+
+    chatHistory.push({ role:'user', content:text });
+    input.value = '';
+    sendBtn.disabled = true;
+    renderMsgs();
+
+    // Thinking indicator
+    const thinkId = 'thinking-' + Date.now();
+    msgsEl.innerHTML += `<div class="msg ai" id="${thinkId}"><div class="msg-tag">◈ MOTOTRACK AI</div>Analyzing your bike data...</div>`;
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1000,
+          system: buildSystem(),
+          messages: chatHistory.map(m=>({ role:m.role, content:m.content }))
+        })
+      });
+      const data = await res.json();
+      const reply = data.content?.map(b=>b.text||'').join('') || 'Sorry, I could not get a response.';
+      chatHistory.push({ role:'assistant', content:reply });
+    } catch {
+      chatHistory.push({ role:'assistant', content:'Connection error. Please check your internet and try again.' });
+    }
+
+    sendBtn.disabled = false;
+    renderMsgs();
+  }
+
+  document.getElementById('send-btn').onclick = sendMsg;
+  document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key==='Enter') sendMsg(); });
+}
+
+// ─── BIKE SETUP MODAL ────────────────────────────────────
+function showSetup() {
+  const b = state.bike;
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-title">YOUR BIKE</div>
+    <div class="modal-sub">Enter your motorcycle details to enable personalized AI advice and maintenance tracking.</div>
+    <div class="form-row">
+      <div class="form-field"><label class="form-label">Make</label><input type="text" id="b-make" value="${b.make}" placeholder="e.g. Honda" /></div>
+      <div class="form-field"><label class="form-label">Model</label><input type="text" id="b-model" value="${b.model}" placeholder="e.g. CB650R" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label class="form-label">Year</label><input type="number" id="b-year" value="${b.year}" placeholder="2022" /></div>
+      <div class="form-field"><label class="form-label">Current km</label><input type="number" id="b-mileage" value="${b.mileage}" placeholder="0" /></div>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn-primary" id="save-bike">Save Bike</button>
+      ${b.make?'<button class="btn-secondary" id="close-modal">Cancel</button>':''}
+    </div>`;
+
+  document.getElementById('modal-overlay').classList.add('show');
+
+  document.getElementById('save-bike').onclick = () => {
+    state.bike = {
+      make: document.getElementById('b-make').value.trim(),
+      model: document.getElementById('b-model').value.trim(),
+      year: document.getElementById('b-year').value.trim(),
+      mileage: document.getElementById('b-mileage').value.trim(),
+    };
+    save(); closeModal(); render();
+  };
+
+  const closeBtn = document.getElementById('close-modal');
+  if (closeBtn) closeBtn.onclick = closeModal;
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+document.getElementById('modal-overlay').onclick = (e) => { if (e.target === document.getElementById('modal-overlay')) closeModal(); };
+
+// ─── TABS & INIT ─────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => setTab(t.dataset.tab);
+});
+
+document.getElementById('setup-btn').onclick = showSetup;
+
+// Auto-show setup if no bike
+if (!state.bike.make) setTimeout(showSetup, 300);
+
+render();
+
+// ─── PWA: Service Worker ──────────────────────────────────
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'mototrack-v1';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])));
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    });
+  `;
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  const swURL = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL).catch(() => {});
+}
+
+// ─── PWA: Install Prompt ──────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('show');
+});
+
+document.getElementById('install-btn').onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('install-banner').classList.remove('show');
+};
+
+document.getElementById('dismiss-install').onclick = () => {
+  document.getElementById('install-banner').classList.remove('show');
+};
+</script>
+</body>
+</html>
